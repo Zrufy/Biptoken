@@ -82,7 +82,6 @@ For LLM applications with strict token limits, consider using tiktoken or simila
 
 ## API Reference
 
-```bash
 ### Biptoken(vocab_size=32000)
 
 Create a new tokenizer with specified vocabulary size.
@@ -110,7 +109,7 @@ Save tokenizer to JSON file.
 ### load(filepath)
 
 Load tokenizer from JSON file.
-```
+
 ## Implementation Details
 
 Biptoken uses:
