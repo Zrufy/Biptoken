@@ -68,7 +68,7 @@ Biptoken optimizes for:
 - Correctness: Guaranteed perfect text reconstruction
 - Simplicity: Straightforward implementation without complex normalizations
 
-This comes at the cost of token efficiency - Biptoken typically produces ~2x more tokens than tiktoken.
+This comes at the cost of token efficiency - Biptoken typically produces ~1.24x more tokens than tiktoken.
 
 ## Use Cases
 
