@@ -53,9 +53,9 @@ Benchmark on 25M character text (5 iterations):
 
 |Metric                |Biptoken|tiktoken|Comparison                                      |
 |----------------------|------------|--------|------------------------------------------------|
-|Encoding speed        |0.85s       |2.31s   |2.7x faster                                    |
-|Decoding speed        |0.08s       |0.20s   |2.5x faster                                    |
-|Token count           |9.6M       |7.2M    |~1.3x more tokens                                  |
+|Encoding speed        |0.74s       |2.21s   |2.97x faster                                    |
+|Decoding speed        |0.07s       |0.19s   |2.61x faster                                    |
+|Token count           |8.9M       |7.2M    |~1.24x more tokens                                  |
 |Perfect reconstruction|✓           |✓*      |Both achieve perfect reconstruction on this test|
 
 *Note: tiktoken does not guarantee perfect reconstruction for all edge cases (multiple spaces, special formatting).
