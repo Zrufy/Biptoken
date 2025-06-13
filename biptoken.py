@@ -9,13 +9,13 @@ from functools import lru_cache
 
 class Biptoken:
     """
-    BipTokenizer robusto per produzione con gestione corretta di spazi e token speciali
+    Robust BipTokenizer for production with correct handling of spaces and special tokens
     """
     
     def __init__(self, vocab_size: int = 32000):
         self.vocab_size = vocab_size
         
-        # Token speciali
+        # Special tokens
         self.special_tokens = {
             '<pad>': 0, '<s>': 1, '</s>': 2, '<unk>': 3,
             '<mask>': 4, '<sep>': 5, '<cls>': 6,
@@ -25,7 +25,7 @@ class Biptoken:
             '<think>': 13, '</think>': 14,
         }
         
-        # Aggiungiamo token per spazi e case
+        # Add tokens for spaces and case
         self.space_token = '<space>'
         self.uppercase_token = '<upper>'
         self.special_tokens[self.space_token] = 15
@@ -37,90 +37,90 @@ class Biptoken:
         
         # BPE
         self.merges = {}
-        self.word_tokenization = {}  # Cache per tokenizzazione parole
+        self.word_tokenization = {}  # Cache for word tokenization
         
-        # Pattern compilati per velocità
-        self.pat = re.compile(r"'s|'t|'re|'ve|'m|'ll|'d|[A-Za-z]+|\d+|[^\sA-Za-z\d]+|\s+")
+        # Compiled patterns for speed
+        self.pat = re.compile(r"'s|'t|'re|'ve|'m|'ll|'d|[A-Za-z]+|\d+|[^\sA-ZaZ\d]+|\s+")
         self.special_pat = re.compile(r'<[^>]+>')
         self.space_pat = re.compile(r'\S+|\s+')
         self.word_pat = re.compile(r'\w+|[^\w\s]')
         
-        # Preserva struttura originale
-        self.original_structure = {}  # Memorizza struttura originale per decodifica
+        # Preserve original structure
+        self.original_structure = {}  # Stores original structure for decoding
         
-        # Cache per encoding/decoding
+        # Cache for encoding/decoding
         self._encode_cache = {}
         self._decode_cache = {}
         self.MAX_CACHE_SIZE = 10000
         
-        # Set di token speciali per lookup veloce
+        # Set of special tokens for fast lookup
         self.special_token_set = set(self.special_tokens.keys())
         self.special_token_ids = set(self.special_tokens.values())
         
-        # Lookup veloci
+        # Fast lookups
         self.punc_chars = set(',.!?;:)]}"\'')
         self.open_chars = set('([{"\'')
         
-        # Precompila token_to_id per lookup più veloce
+        # Precompile token_to_id for faster lookup
         self.token_to_id_default = defaultdict(lambda: self.token_to_id['<unk>'])
         self.token_to_id_default.update(self.token_to_id)
         
     def train(self, texts: List[str], min_freq: int = 2):
-        """Training BPE"""
+        """BPE training"""
         print("🚀 Starting Robust BPE tokenizer training...")
         
-        # Step 1: Conta frequenze parole
+        # Step 1: Count word frequencies
         print("📊 Step 1: Collecting word frequencies...")
         word_freqs = self._get_word_frequencies(texts)
         
-        # Step 2: Inizializza vocabolario base
+        # Step 2: Initialize base vocabulary
         print("🔤 Step 2: Building base vocabulary...")
         self._build_base_vocab(word_freqs)
         
-        # Step 3: Apprendi BPE merges
+        # Step 3: Learn BPE merges
         print("🔄 Step 3: Learning BPE merges...")
         self._learn_bpe(word_freqs)
         
         print(f"✅ Training complete! Vocabulary size: {len(self.token_to_id)}")
         
-        # Aggiorna strutture dati per lookup veloce
+        # Update data structures for fast lookup
         self.token_to_id_default = defaultdict(lambda: self.token_to_id['<unk>'])
         self.token_to_id_default.update(self.token_to_id)
         
     def _get_word_frequencies(self, texts: List[str]) -> Dict[str, int]:
-        """Ottieni frequenze delle parole con gestione corretta degli spazi"""
+        """Get word frequencies with correct handling of spaces"""
         word_freqs = Counter()
         
         for text in texts:
-            # Tokenizza preservando struttura
+            # Tokenize preserving structure
             words = self._tokenize_text(text)
             word_freqs.update(words)
             
         return dict(word_freqs)
     
     def _tokenize_text(self, text: str) -> List[str]:
-        """Tokenizza testo preservando spazi e struttura"""
-        # Ottimizzazione: pre-allocazione
+        """Tokenize text preserving spaces and structure"""
+        # Optimization: pre-allocation
         tokens = []
         special_tokens = []
         
-        # Estrai token speciali in un unico passaggio
+        # Extract special tokens in a single pass
         for match in self.special_pat.finditer(text):
             special_tokens.append((match.start(), match.end(), match.group()))
         
-        # Processa il testo
+        # Process the text
         last_end = 0
         for start, end, token in special_tokens:
-            # Processa testo prima del token speciale
+            # Process text before the special token
             if start > last_end:
                 segment = text[last_end:start]
                 tokens.extend(self._tokenize_segment(segment))
             
-            # Aggiungi token speciale esattamente come appare
+            # Add special token exactly as it appears
             tokens.append(token)
             last_end = end
         
-        # Processa resto del testo
+        # Process the rest of the text
         if last_end < len(text):
             segment = text[last_end:]
             tokens.extend(self._tokenize_segment(segment))
@@ -128,37 +128,37 @@ class Biptoken:
         return tokens
     
     def _tokenize_segment(self, text: str) -> List[str]:
-        """Tokenizza un segmento di testo normale preservando struttura"""
+        """Tokenize a segment of normal text preserving structure"""
         if not text:
             return []
         
-        # Ottimizzazione: pre-allocazione e uso di append
+        # Optimization: pre-allocation and use of append
         tokens = []
         
-        # Usa pattern compilati
+        # Use compiled patterns
         parts = self.space_pat.findall(text)
         
         for part in parts:
             if part.isspace():
-                # Preserva spazi esatti
+                # Preserve exact spaces
                 tokens.append(self.space_token)
             else:
-                # Dividi ulteriormente parole e punteggiatura
+                # Further split words and punctuation
                 subparts = self.word_pat.findall(part)
                 for subpart in subparts:
                     if subpart.strip():
-                        # Preserva case originale
+                        # Preserve original case
                         tokens.append(subpart)
         
         return tokens
     
     def train_from_file(self, filepath: str, min_freq: int = 2):
-        """Addestra il tokenizer da un file di testo"""
+        """Train the tokenizer from a text file"""
         print(f"🔍 Loading text from {filepath}...")
         with open(filepath, "r", encoding="utf-8") as f:
             text = f.read()
         
-        # Dividi in frasi o paragrafi - ottimizzato
+        # Split into sentences or paragraphs - optimized
         sentences = []
         paragraphs = text.split("\n\n")
         for paragraph in paragraphs:
@@ -172,25 +172,25 @@ class Biptoken:
         self.train(sentences, min_freq=min_freq)
     
     def _build_base_vocab(self, word_freqs: Dict[str, int]):
-        """Costruisci vocabolario base"""
-        # Ottimizzazione: usa set per caratteri unici
+        """Build base vocabulary"""
+        # Optimization: use set for unique characters
         chars = set()
         for word in word_freqs:
             if not word.startswith('<'):
                 chars.update(word.lower())
         
-        # Aggiungi tutti i caratteri
+        # Add all characters
         for char in sorted(chars):
             if char not in self.token_to_id:
                 self.token_to_id[char] = self.next_id
                 self.id_to_token[self.next_id] = char
                 self.next_id += 1
         
-        # Aggiungi parole molto frequenti come token interi
+        # Add very frequent words as whole tokens
         sorted_words = sorted(word_freqs.items(), key=lambda x: x[1], reverse=True)
         
-        for word, freq in sorted_words[:1000]:  # Top 1000 parole
-            if freq < 50:  # Solo parole molto frequenti
+        for word, freq in sorted_words[:1000]:  # Top 1000 words
+            if freq < 50:  # Only very frequent words
                 break
             
             if word.lower() not in self.token_to_id and self.next_id < self.vocab_size // 3:
@@ -199,16 +199,16 @@ class Biptoken:
                 self.next_id += 1
     
     def _learn_bpe(self, word_freqs: Dict[str, int]):
-        """Apprendi merge rules BPE"""
-        # Prepara splits iniziali
+        """Learn BPE merge rules"""
+        # Prepare initial splits
         word_splits = {}
         
         for word, freq in word_freqs.items():
             if word.startswith('<') and word.endswith('>'):
-                # Token speciali non si splittano
+                # Special tokens are not split
                 word_splits[word] = [word]
             else:
-                # Aggiungi marcatore fine parola
+                # Add end-of-word marker
                 word_splits[word.lower()] = list(word.lower()) + ['</w>']
         
         # BPE iterations
@@ -216,7 +216,7 @@ class Biptoken:
         target_vocab_size = self.vocab_size - self.next_id
         
         while n_merges < target_vocab_size and self.next_id < self.vocab_size:
-            # Conta coppie - ottimizzato con defaultdict
+            # Count pairs - optimized with defaultdict
             pair_freqs = defaultdict(int)
             
             for word, splits in word_splits.items():
@@ -229,13 +229,13 @@ class Biptoken:
             if not pair_freqs:
                 break
             
-            # Trova coppia più frequente
+            # Find most frequent pair
             best_pair = max(pair_freqs.items(), key=lambda x: x[1])[0]
             
-            # Unisci la coppia
+            # Merge the pair
             new_unit = best_pair[0] + best_pair[1]
             
-            # Aggiorna splits - ottimizzato
+            # Update splits - optimized
             new_word_splits = {}
             for word, splits in word_splits.items():
                 new_splits = []
@@ -255,31 +255,31 @@ class Biptoken:
             
             word_splits = new_word_splits
             
-            # Aggiungi nuovo token
+            # Add new token
             if new_unit not in self.token_to_id:
                 self.token_to_id[new_unit] = self.next_id
                 self.id_to_token[self.next_id] = new_unit
                 self.next_id += 1
             
-            # Salva merge
+            # Save merge
             self.merges[best_pair] = new_unit
             n_merges += 1
             
             if n_merges % 500 == 0:
                 print(f"  Learned {n_merges} merges, vocab size: {self.next_id}")
         
-        # Salva tokenizzazioni finali
+        # Save final tokenizations
         self.word_tokenization = {}
         for word, splits in word_splits.items():
-            # Rimuovi </w> per parole normali
+            # Remove </w> for normal words
             if not (word.startswith('<') and word.endswith('>')):
                 splits = [s for s in splits if s != '</w>']
             self.word_tokenization[word] = splits
     
     @lru_cache(maxsize=10000)
     def _bpe_tokenize(self, word: str) -> Tuple[str, ...]:
-        """Applica BPE a una parola - ottimizzato con cache"""
-        # Preserva case originale
+        """Apply BPE to a word - optimized with cache"""
+        # Preserve original case
         is_upper = False
         if word and word[0].isupper():
             is_upper = True
@@ -291,10 +291,10 @@ class Biptoken:
         elif word in self.token_to_id:
             return (word,)
         else:
-            # Applica BPE
+            # Apply BPE
             splits = list(word_lower) + ['</w>']
             
-            # Applica merge rules - ottimizzato
+            # Apply merge rules - optimized
             changed = True
             while changed:
                 changed = False
@@ -315,16 +315,16 @@ class Biptoken:
                 
                 splits = new_splits
             
-            # Rimuovi </w>
+            # Remove </w>
             tokens = [s for s in splits if s != '</w>']
         
-        # Aggiungi token uppercase se necessario
+        # Add uppercase token if needed
         if is_upper:
             return (self.uppercase_token,) + tuple(tokens)
         return tuple(tokens)
     
     def encode(self, text: str, add_special_tokens: bool = True) -> List[int]:
-        """Encode text to IDs preservando struttura originale - ottimizzato"""
+        """Encode text to IDs preserving original structure - optimized"""
         # Verifica cache
         cache_key = (text, add_special_tokens)
         if cache_key in self._encode_cache:
@@ -334,21 +334,21 @@ class Biptoken:
         text_id = hash(text)
         self.original_structure[text_id] = text
         
-        # Tokenizza il testo - ottimizzato
+        # Tokenize the text - optimized
         tokens = []
         special_positions = []
         
-        # Estrai token speciali in un unico passaggio
+        # Extract special tokens in a single pass
         for match in self.special_pat.finditer(text):
             special_positions.append((match.start(), match.end(), match.group()))
         
-        # Processa il testo
+        # Process the text
         last_end = 0
         for start, end, token in special_positions:
-            # Processa testo prima del token speciale
+            # Process text before the special token
             if start > last_end:
                 segment = text[last_end:start]
-                # Ottimizzato: elabora segmenti in batch
+                # Optimized: process segments in batch
                 for part in self.space_pat.findall(segment):
                     if part.isspace():
                         tokens.append(self.space_token)
@@ -358,11 +358,11 @@ class Biptoken:
                                 subtokens = self._bpe_tokenize(subpart)
                                 tokens.extend(subtokens)
             
-            # Aggiungi token speciale
+            # Add special token
             tokens.append(token)
             last_end = end
         
-        # Processa resto del testo
+        # Process the rest of the text
         if last_end < len(text):
             segment = text[last_end:]
             for part in self.space_pat.findall(segment):
@@ -409,7 +409,7 @@ class Biptoken:
         return ids_list
     
     def decode(self, ids: List[int], skip_special_tokens: bool = True) -> str:
-        """Decode IDs to text preservando struttura originale - ottimizzato"""
+        """Decode IDs to text preserving original structure - ottimizzato"""
         # Verifica cache
         cache_key = (tuple(ids), skip_special_tokens)
         if cache_key in self._decode_cache:
@@ -508,15 +508,15 @@ class Biptoken:
         return text
     
     def encode_batch(self, texts: List[str], add_special_tokens: bool = True) -> List[List[int]]:
-        """Codifica un batch di testi in parallelo"""
+        """Encode a batch of texts in parallel"""
         return [self.encode(text, add_special_tokens) for text in texts]
     
     def decode_batch(self, batch_ids: List[List[int]], skip_special_tokens: bool = True) -> List[str]:
-        """Decodifica un batch di ID in parallelo"""
+        """Decode a batch of IDs in parallel"""
         return [self.decode(ids, skip_special_tokens) for ids in batch_ids]
     
     def save(self, filepath: str):
-        """Salva tokenizer"""
+        """Save tokenizer"""
         data = {
             'vocab_size': self.vocab_size,
             'token_to_id': self.token_to_id,
@@ -530,7 +530,7 @@ class Biptoken:
             json.dump(data, f, ensure_ascii=False, indent=2)
     
     def load(self, filepath: str):
-        """Carica tokenizer"""
+        """Load tokenizer"""
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
@@ -538,12 +538,12 @@ class Biptoken:
         self.token_to_id = {k: int(v) if isinstance(v, str) else v for k, v in data['token_to_id'].items()}
         self.id_to_token = {int(v): k for k, v in self.token_to_id.items()}
         
-        # Carica token speciali
+        # Load special tokens
         self.special_tokens = data.get('special_tokens', self.special_tokens)
         self.space_token = data.get('space_token', '<space>')
         self.uppercase_token = data.get('uppercase_token', '<upper>')
         
-        # Ricostruisci merges
+        # Rebuild merges
         self.merges = {}
         for key, value in data.get('merges', {}).items():
             p1, p2 = key.split('|||')
@@ -552,7 +552,7 @@ class Biptoken:
         self.next_id = max(self.id_to_token.keys()) + 1
         self.original_structure = {}
         
-        # Reinizializza cache e strutture dati ottimizzate
+        # Reinitialize cache and optimized data structures
         self._encode_cache = {}
         self._decode_cache = {}
         self.special_token_set = set(self.special_tokens.keys())
