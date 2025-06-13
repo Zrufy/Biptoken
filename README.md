@@ -10,6 +10,8 @@ A fast BPE tokenizer with perfect text reconstruction guarantee.
 - Simple API: Compatible with common tokenizer interfaces
 
 ## Installation
+
+```bash
 # Clone the repository
 git clone https://github.com/Zrufy/biptoken.git
 cd biptoken
@@ -19,8 +21,11 @@ pip install -e .
 
 # Or install directly
 pip install .
+```
 
 ## Quick Start
+
+```python
 from biptoken import Biptoken
 
 # Create and train a tokenizer
@@ -32,11 +37,15 @@ text = "Hello world!   Multiple spaces preserved."
 tokens = tokenizer.encode(text)
 decoded = tokenizer.decode(tokens)
 assert text == decoded  # Always true
+```
 
 ## Training from File
+
+```python
 tokenizer = Biptoken(vocab_size=50000)
 tokenizer.train_from_file("path/to/your/text.txt")
 tokenizer.save("my_tokenizer.json")
+```
 
 ## Performance
 
